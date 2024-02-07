@@ -12,6 +12,13 @@ var v1l3BitRates = []float64{ 0, 32000.0, 40000.0, 48000.0,
   56000.0, 64000.0, 80000.0, 96000.0,
   112000.0, 128000.0, 160000.0, 192000.0,
   224000.0, 256000.0, 320000.0 }
+
+// version 2, layer 3 bit rates and sample rates
+var v2l3BitRates = []float64{ 0, 8000.0, 16000.0, 24000.0,
+  32000.0, 40000.0, 48000.0, 56000.0,
+  64000.0, 80000.0, 96000.0, 112000.0,
+  128000.0, 144000.0, 160000.0 }
+
 var v1l3SampleRates = []float64{ 44100.0, 48000.0, 32000.0 }
 
 func Mp3TagsFromFile(path string) TagMap {
@@ -36,7 +43,7 @@ func Mp3TagsFromFile(path string) TagMap {
       }
       if (buffer[n+1] & 0xe0) == 0xe0 {
         numFrames++
-        frameSize, frameDuration := mp3ParseFrame(buffer[n:], n)
+        frameSize, frameDuration := mp3ParseFrame(path, buffer[n:], n)
         totalFrameBytes += frameSize
         increment = frameSize
         duration = duration + frameDuration
@@ -60,19 +67,19 @@ func Mp3TagsFromFile(path string) TagMap {
 // These pages were helpful too:
 // https://web.archive.org/web/20070821052201/https://www.id3.org/mp3Frame
 // https://stackoverflow.com/questions/6220660/calculating-the-length-of-mp3-frames-in-milliseconds
-func mp3ParseFrame(buffer []byte, offset int) (int, float64) {
+func mp3ParseFrame(path string, buffer []byte, offset int) (int, float64) {
   version := (buffer[1] >> 3) & 0x03
   layer := (buffer[1] >> 1) & 0x03
   // We only handle MP3 at this time.
   if version != 3 || layer != 1 {
-    log.Fatalf("Got frame with version %d and layer %d at offset %d\n", version, layer, offset)
+    // log.Fatalf("Got frame with version %d and layer %d at offset %d\n", version, layer, offset)
   }
   protection := (buffer[1] & 0x01) == 0
   bri := buffer[2] >> 4  // bit rate index
   sri := (buffer[2] >> 2) & 0x03  // sample rate index
   padding := (buffer[2] >> 1) & 0x01 == 0x01
   // We now have enough info to calculate the size of the frame.
-  bitRate := v1l3BitRates[bri]
+  bitRate := getBitRate(path, version, layer, bri) // v1l3BitRates[bri]
   sampleRate := v1l3SampleRates[sri]
   frameSize := int((144.0 * bitRate) / sampleRate)
   if padding {
@@ -82,6 +89,22 @@ func mp3ParseFrame(buffer []byte, offset int) (int, float64) {
     frameSize += 2
   }
   return frameSize, 1152.0 / sampleRate
+}
+
+// Note that the version and layer are "raw" - i.e., directly from the frame.
+// e.g. version == 3 means MPEG version 1
+// layer == 1 means layer III
+func getBitRate(path string, version, layer, bri byte) float64 {
+  // The usual for MP3's.
+  if version == 3 && layer == 1 {
+    return v1l3BitRates[bri]
+  }
+  if version == 2 && layer == 1 {
+    return v2l3BitRates[bri]
+  }
+  // Don't handle anything else at this point.
+  log.Fatalf("Unable to determine bit rate for %s from version %d and layer %d\n", path, version, layer)
+  return 0.0
 }
 
 // MP3 ID3 blocks are described here:
