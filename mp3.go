@@ -68,18 +68,20 @@ func Mp3TagsFromFile(path string) TagMap {
 // https://web.archive.org/web/20070821052201/https://www.id3.org/mp3Frame
 // https://stackoverflow.com/questions/6220660/calculating-the-length-of-mp3-frames-in-milliseconds
 func mp3ParseFrame(path string, buffer []byte, offset int) (int, float64) {
-  version := (buffer[1] >> 3) & 0x03
-  layer := (buffer[1] >> 1) & 0x03
+  // Convert the first four bytes into a big-endian uint32.
+  header := binary.BigEndian.Uint32(buffer[0:4])
+  versionIndex := (header >> 19) & 0x03
+  layerIndex := (header >> 17) & 0x03
   // We only handle MP3 at this time.
-  if version != 3 || layer != 1 {
+  if versionIndex != 3 || layerIndex != 1 {
     // log.Fatalf("Got frame with version %d and layer %d at offset %d\n", version, layer, offset)
   }
-  protection := (buffer[1] & 0x01) == 0
-  bri := buffer[2] >> 4  // bit rate index
-  sri := (buffer[2] >> 2) & 0x03  // sample rate index
-  padding := (buffer[2] >> 1) & 0x01 == 0x01
+  protection := (header & 0x010000) == 0
+  bri := (header >> 12) & 0x0f  // bit rate index
+  sri := (header >> 10) & 0x03  // sample rate index
+  padding := (header >> 9) & 0x01 == 0x01
   // We now have enough info to calculate the size of the frame.
-  bitRate := getBitRate(path, version, layer, bri) // v1l3BitRates[bri]
+  bitRate := getBitRate(path, versionIndex, layerIndex, bri) // v1l3BitRates[bri]
   sampleRate := v1l3SampleRates[sri]
   frameSize := int((144.0 * bitRate) / sampleRate)
   if padding {
@@ -91,19 +93,18 @@ func mp3ParseFrame(path string, buffer []byte, offset int) (int, float64) {
   return frameSize, 1152.0 / sampleRate
 }
 
-// Note that the version and layer are "raw" - i.e., directly from the frame.
-// e.g. version == 3 means MPEG version 1
-// layer == 1 means layer III
-func getBitRate(path string, version, layer, bri byte) float64 {
+// Note that versionIndex and layerIndex are "raw" - i.e., directly from the frame.
+// e.g. versionIndex == 3 means MPEG version 1 and layerIndex == 1 means layer III
+func getBitRate(path string, versionIndex, layerIndex, bri uint32) float64 {
   // The usual for MP3's.
-  if version == 3 && layer == 1 {
+  if versionIndex == 3 && layerIndex == 1 {
     return v1l3BitRates[bri]
   }
-  if version == 2 && layer == 1 {
+  if versionIndex == 2 && layerIndex == 1 {
     return v2l3BitRates[bri]
   }
   // Don't handle anything else at this point.
-  log.Fatalf("Unable to determine bit rate for %s from version %d and layer %d\n", path, version, layer)
+  log.Fatalf("Unable to determine bit rate for %s from versionIndex %d and layerIndex %d\n", path, versionIndex, layerIndex)
   return 0.0
 }
 
