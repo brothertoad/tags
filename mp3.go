@@ -37,14 +37,14 @@ func Mp3TagsFromFile(path string) TagMap {
     increment = 1
     b := buffer[n]
     if b == 0xff {
-      // If we're at the last byte, just stop.
-      if n == (len(buffer) - 1) {
+      // If we don't have at least four bytes, just stop.
+      if n > (len(buffer) - 4) {
         break
       }
       if (buffer[n+1] & 0xe0) == 0xe0 && (buffer[n+2] & 0xf0 != 0xf0) && (buffer[n+2] & 0x0c) != 0x0c {
-        numFrames++
         frameSize, frameDuration := mp3ParseFrame(path, buffer[n:], n)
         totalFrameBytes += frameSize
+        numFrames++
         increment = frameSize
         duration = duration + frameDuration
       }
