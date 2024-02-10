@@ -7,13 +7,13 @@ import (
   "unicode/utf16"
 )
 
-// version 1, layer 3 bit rates and sample rates
+// version 1, layer 3 bit rates
 var v1l3BitRates = []float64{ 0, 32000.0, 40000.0, 48000.0,
   56000.0, 64000.0, 80000.0, 96000.0,
   112000.0, 128000.0, 160000.0, 192000.0,
   224000.0, 256000.0, 320000.0 }
 
-// version 2, layer 3 bit rates and sample rates
+// version 2, layer 3 bit rates
 var v2l3BitRates = []float64{ 0, 8000.0, 16000.0, 24000.0,
   32000.0, 40000.0, 48000.0, 56000.0,
   64000.0, 80000.0, 96000.0, 112000.0,
@@ -81,8 +81,7 @@ func mp3ParseFrame(path string, buffer []byte, offset int) (int, float64) {
   sri := (header >> 10) & 0x03  // sample rate index
   padding := (header >> 9) & 0x01 == 0x01
   // We now have enough info to calculate the size of the frame.
-  bitRate := getBitRate(path, versionIndex, layerIndex, bri) // v1l3BitRates[bri]
-  sampleRate := v1l3SampleRates[sri]
+  bitRate, sampleRate := getBitAndSampleRates(path, versionIndex, layerIndex, bri, sri)
   frameSize := int((144.0 * bitRate) / sampleRate)
   if padding {
     frameSize += 1
@@ -95,17 +94,17 @@ func mp3ParseFrame(path string, buffer []byte, offset int) (int, float64) {
 
 // Note that versionIndex and layerIndex are "raw" - i.e., directly from the frame.
 // e.g. versionIndex == 3 means MPEG version 1 and layerIndex == 1 means layer III
-func getBitRate(path string, versionIndex, layerIndex, bri uint32) float64 {
+func getBitAndSampleRates(path string, versionIndex, layerIndex, bri, sri uint32) (float64, float64) {
   // The usual for MP3's.
   if versionIndex == 3 && layerIndex == 1 {
-    return v1l3BitRates[bri]
+    return v1l3BitRates[bri], v1l3SampleRates[sri]
   }
   if versionIndex == 2 && layerIndex == 1 {
-    return v2l3BitRates[bri]
+    return v2l3BitRates[bri], v1l3SampleRates[sri]
   }
   // Don't handle anything else at this point.
   log.Fatalf("Unable to determine bit rate for %s from versionIndex %d and layerIndex %d\n", path, versionIndex, layerIndex)
-  return 0.0
+  return 0.0, 0.0 // should never reach this
 }
 
 // MP3 ID3 blocks are described here:
