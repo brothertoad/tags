@@ -7,19 +7,39 @@ import (
   "unicode/utf16"
 )
 
+// version 1, layer 1 bit rates
+var v1l1BitRates = []float64{ 0, 32000.0, 64000.0, 96000.0,
+  128000.0, 160000.0, 192000.0, 224000.0,
+  256000.0, 288000.0, 320000.0, 352000.0,
+  384000.0, 416000.0, 448000.0 }
+
+// version 1, layer 2 bit rates
+var v1l2BitRates = []float64{ 0, 32000.0, 40000.0, 56000.0,
+  64000.0, 80000.0, 96000.0, 112000.0,
+  128000.0, 160000.0, 192000.0, 224000.0,
+  256000.0, 320000.0, 384000.0 }
+
 // version 1, layer 3 bit rates
 var v1l3BitRates = []float64{ 0, 32000.0, 40000.0, 48000.0,
   56000.0, 64000.0, 80000.0, 96000.0,
   112000.0, 128000.0, 160000.0, 192000.0,
   224000.0, 256000.0, 320000.0 }
 
-// version 2, layer 3 bit rates
-var v2l3BitRates = []float64{ 0, 8000.0, 16000.0, 24000.0,
+// version 2, layer 1 bit rates
+var v2l1BitRates = []float64{ 0, 32000.0, 48000.0, 56000.0,
+  64000.0, 80000.0, 96000.0, 112000.0,
+  128000.0, 144000.0, 160000.0, 176000.0,
+  192000.0, 224000.0, 256000.0 }
+
+// version 2, layers 2 and 3 bit rates
+var v2l23BitRates = []float64{ 0, 8000.0, 16000.0, 24000.0,
   32000.0, 40000.0, 48000.0, 56000.0,
   64000.0, 80000.0, 96000.0, 112000.0,
   128000.0, 144000.0, 160000.0 }
 
-var v1l3SampleRates = []float64{ 44100.0, 48000.0, 32000.0 }
+var v1SampleRates = []float64{ 44100.0, 48000.0, 32000.0 }
+var v2SampleRates = []float64{ 22050.0, 24000.0, 16000.0 }
+var v25SampleRates = []float64{ 11025.0, 12000.0, 8000.0 }
 
 func Mp3TagsFromFile(path string) TagMap {
   buffer := readFile(path)
@@ -41,7 +61,8 @@ func Mp3TagsFromFile(path string) TagMap {
       if n > (len(buffer) - 4) {
         break
       }
-      if (buffer[n+1] & 0xe0) == 0xe0 && (buffer[n+2] & 0xf0 != 0xf0) && (buffer[n+2] & 0x0c) != 0x0c {
+      // Put validation in separate function - need to check for reserved version or layer
+      if validHeader(buffer[n:(n+4)]) {
         frameSize, frameDuration := mp3ParseFrame(path, buffer[n:], n)
         totalFrameBytes += frameSize
         numFrames++
@@ -59,6 +80,33 @@ func Mp3TagsFromFile(path string) TagMap {
   m[EncodedExtensionKey] = "mp3"
   m[IsEncodedKey] = "true"
   return m
+}
+
+func validHeader(b []byte) bool {
+  // Convert the first four bytes into a big-endian uint32.
+  header := binary.BigEndian.Uint32(b[0:4])
+  // Verify this is a frame sync
+  if (header >> 21) != 0x07ff {
+    return false
+  }
+  // Verify the MPEG version is not "reserved"
+  if (header >> 19) & 0x03 == 0x01 {
+    return false
+  }
+  // Verify the MPEG layer is not "reserved"
+  if (header >> 17) & 0x03 == 0x00 {
+    return false
+  }
+  // Verify the bit rate index is not "free" or "bad"
+  bri := (header >> 12) & 0x0f
+  if bri == 0 || bri == 0x0f {
+    return false
+  }
+  // Verify the sampling rate index is not "reserved"
+  if (header >> 10) & 0x03 == 0x03 {
+    return false
+  }
+  return true
 }
 
 // Returns the size of this frame in bytes and the duration of the sound
@@ -95,12 +143,31 @@ func mp3ParseFrame(path string, buffer []byte, offset int) (int, float64) {
 // Note that versionIndex and layerIndex are "raw" - i.e., directly from the frame.
 // e.g. versionIndex == 3 means MPEG version 1 and layerIndex == 1 means layer III
 func getBitAndSampleRates(path string, versionIndex, layerIndex, bri, sri uint32) (float64, float64) {
-  // The usual for MP3's.
-  if versionIndex == 3 && layerIndex == 1 {
-    return v1l3BitRates[bri], v1l3SampleRates[sri]
+  // Version index == 3 => MPEG version 1
+  if versionIndex == 3 {
+    if layerIndex == 1 {
+      return v1l3BitRates[bri], v1SampleRates[sri]
+    } else if layerIndex == 2 {
+      return v1l2BitRates[bri], v1SampleRates[sri]
+    } else if layerIndex == 3 {
+      return v1l1BitRates[bri], v1SampleRates[sri]
+    }
   }
-  if versionIndex == 2 && layerIndex == 1 {
-    return v2l3BitRates[bri], v1l3SampleRates[sri]
+  // Version index == 2 => MPEG version 2
+  if versionIndex == 2 {
+    if layerIndex == 1 || layerIndex == 2 {
+      return v2l23BitRates[bri], v2SampleRates[sri]
+    } else if layerIndex == 3 {
+      return v2l1BitRates[bri], v2SampleRates[sri]
+    }
+  }
+  // Version index == 0 => MPEG version 2.5
+  if versionIndex == 0 {
+    if layerIndex == 1 || layerIndex == 2 {
+      return v2l23BitRates[bri], v25SampleRates[sri]
+    } else if layerIndex == 3 {
+      return v2l1BitRates[bri], v25SampleRates[sri]
+    }
   }
   // Don't handle anything else at this point.
   log.Fatalf("Unable to determine bit rate for %s from versionIndex %d and layerIndex %d\n", path, versionIndex, layerIndex)
