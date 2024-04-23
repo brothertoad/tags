@@ -36,7 +36,7 @@ func main() {
 }
 
 func dumpFile(path string) {
-  m := tags.GetTagsFromFile(path)
+  m := tags.GetStandardTagsFromFile(path)
   fmt.Printf("file %s has %d tags\n", path, len(m))
   for key, value := range m {
     fmt.Printf("%s: %s\n", key, value)
