@@ -27,8 +27,6 @@ const Md5Key = "md5"
 const SizeAndTimeKey = "sizeAndTime"
 const EncodedSourceKey = "encodedSource" // size and time of source of encoding
 
-const EncodeFlag = "e"
-
 type TagMap map[string]string
 type TagMapSlice []TagMap
 
