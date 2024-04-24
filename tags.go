@@ -37,6 +37,9 @@ func GetTagsFromFile(path string) TagMap {
 
 func GetStandardTagsFromFile(path string) TagMap {
   tagMap := GetTagsFromFile(path)
+  if tagMap == nil || len(tagMap) == 0 {
+    return tagMap
+  }
   translateKeys(tagMap)
   return tagMap
 }
