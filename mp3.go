@@ -190,6 +190,11 @@ func mp3ParseID3(buffer []byte, m TagMap) int {
   // For now, let's just get the size.
   eob := headerSize + frameSize // eob means end of buffer
   for j := headerSize; j < eob; {
+    // Skip zero bytes between tags.  Note: if we find a zero byte, we're probably at the end of the tags.
+    if buffer[j] == 0 {
+      j++
+      continue
+    }
     key := string(buffer[j:j+4])
     size := int(binary.BigEndian.Uint32(buffer[j+4:j+8]))
     if strings.HasPrefix(key, "T") {
