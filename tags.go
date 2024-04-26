@@ -52,6 +52,13 @@ func translateKeys(song TagMap) {
       song[trans] = v
     }
   }
+  // If there is a track number, and it has a slash, change it to the TRCK tag.
+  if v, present := song[TrackNumberKey]; present {
+    if strings.Index(v, "/") >= 0 {
+      s := strings.Split(v, "/")
+      song[TrackNumberKey] = s[0]
+    }
+  }
   // Check for the track number.  If it doesn't exist, see if it has the TRCK tag, which
   // is track number / track total and get the track number from that.
   if _, present := song[TrackNumberKey]; !present {
