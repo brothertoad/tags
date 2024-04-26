@@ -36,12 +36,12 @@ func (s TagMapSlice) Less(i, j int) bool {
   if s[i][ArtistSortKey] != s[j][ArtistSortKey] { return s[i][ArtistSortKey] < s[j][ArtistSortKey] }
   if s[i][AlbumSortKey] != s[j][AlbumSortKey] { return s[i][AlbumSortKey] < s[j][AlbumSortKey] }
   // convert disc numbers from strings to ints and check those
-  di := btu.Atoi(s[i][DiscNumberKey])
-  dj := btu.Atoi(s[j][DiscNumberKey])
+  di := btu.Atoi2(s[i][DiscNumberKey], "Error converting disc number for song '%s'\n", s[i][TitleKey])
+  dj := btu.Atoi2(s[j][DiscNumberKey], "Error converting disc number for song '%s'\n", s[j][TitleKey])
   if di != dj { return di < dj }
   // convert track numbers from strings to ints and check those
-  tni := btu.Atoi(s[i][TrackNumberKey])
-  tnj := btu.Atoi(s[j][TrackNumberKey])
+  tni := btu.Atoi2(s[i][TrackNumberKey], "Error converting track number for song '%s'\n", s[i][TitleKey])
+  tnj := btu.Atoi2(s[j][TrackNumberKey], "Error converting track number for song '%s'\n", s[j][TitleKey])
   return tni < tnj
 }
 func (s TagMapSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }

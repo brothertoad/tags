@@ -1,10 +1,13 @@
 package tags
 
 import (
+  "bytes"
+  "io/ioutil"
   "log"
   "strings"
   "encoding/binary"
-  "unicode/utf16"
+  "golang.org/x/text/transform"
+  "golang.org/x/text/encoding/unicode"
 )
 
 // version 1, layer 1 bit rates
@@ -217,12 +220,16 @@ func mp3ParseID3(buffer []byte, m TagMap) int {
   return eob
 }
 
+// TASK: move this to btu
 func stringFromUTF16(b []byte) string {
-  b16 := make([]uint16, len(b)/2)
-  for j := 0; j < len(b)/2; j++ {
-    b16[j] = uint16(b[2*j+1]) << 8 + uint16(b[2*j])
+  bomEncoder := unicode.UTF16(unicode.BigEndian, unicode.UseBOM)
+  bomReader := transform.NewReader(bytes.NewReader(b), bomEncoder.NewDecoder())
+  decoded, err := ioutil.ReadAll(bomReader)
+  if err != nil {
+    log.Fatalf("Unable to get a string from UTF16\n")
   }
-  return string(utf16.Decode(b16))
+  s := string(decoded)
+  return s
 }
 
 func mp3GetID3Size(b []byte) int {
