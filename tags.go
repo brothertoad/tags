@@ -64,7 +64,7 @@ func translateKeys(song TagMap) {
   if _, present := song[TrackNumberKey]; !present {
     if tntt, tnttPresent := song["TRCK"]; tnttPresent {
       s := strings.Split(tntt, "/")
-      song[TrackNumberKey] = s[0]
+      song[TrackNumberKey] = stripLeadingZero(s[0])
     } else {
       log.Printf("Can't get track number for '%s'\n", song[RelativePathKey])
     }
@@ -75,9 +75,19 @@ func translateKeys(song TagMap) {
   if _, present := song[DiscNumberKey]; !present {
     if dndt, dndtPresent := song["TPOS"]; dndtPresent {
       s := strings.Split(dndt, "/")
-      song[DiscNumberKey] = s[0]
+      song[DiscNumberKey] = stripLeadingZero(s[0])
     } else {
       song[DiscNumberKey] = "1"
     }
   }
+}
+
+func stripLeadingZero(s string) string {
+  if len(s) == 1 {
+    return s
+  }
+  if s[0] == '0' {
+    return s[1:]
+  }
+  return s
 }
