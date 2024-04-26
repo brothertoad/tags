@@ -6,6 +6,7 @@ import (
 )
 
 const magic = 0x664c6143
+const id3Magic = 0x49443300
 const streaminfotype byte = 0
 const commenttype byte = 4
 
@@ -15,9 +16,16 @@ const commenttype byte = 4
 func FlacTagsFromFile(path string) TagMap {
   song := make(TagMap)
   bb := bytebufferfromfile(path)
-  if bb.read32BE() != magic {
-    log.Printf("flac file %s does not have correct magic number\n", path)
-    return song
+  bbMagic := bb.read32BE()
+  if bbMagic != magic {
+    // If the buffer doesn't start with an ID3 block, nothing we can do.
+    if (bbMagic & 0xffffff00) != id3Magic {
+      log.Printf("flac file %s does not have correct magic number\n", path)
+      return song
+    }
+    bb.n = bb.n - 4 // un-read the magic
+    id3size := mp3ParseID3(bb.b, song)
+    bb.skip(uint32(id3size))
   }
   for {
     blocktype, lastone, size := nextmetablock(bb)
