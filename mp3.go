@@ -184,9 +184,12 @@ func mp3ParseID3(buffer []byte, m TagMap) int {
   if buffer[5] & 0x40 == 0x40 {
     headerSize += 4 + int(buffer[13])
   }
+  // Get the size of the tag frame.
+  frameSize := mp3GetID3Size(buffer[6:])
   // Start after the header, and read tags until we're through.
   // For now, let's just get the size.
-  for j := headerSize; j < len(buffer); {
+  eob := headerSize + frameSize // eob means end of buffer
+  for j := headerSize; j < eob; {
     key := string(buffer[j:j+4])
     size := int(binary.BigEndian.Uint32(buffer[j+4:j+8]))
     if strings.HasPrefix(key, "T") {
@@ -206,7 +209,7 @@ func mp3ParseID3(buffer []byte, m TagMap) int {
     }
     j += size + 10
   }
-  return mp3GetID3Size(buffer[6:]) + headerSize
+  return eob
 }
 
 func stringFromUTF16(b []byte) string {

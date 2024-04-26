@@ -13,11 +13,12 @@ const commenttype byte = 4
 // https://xiph.org/flac/format.html
 
 func FlacTagsFromFile(path string) TagMap {
+  song := make(TagMap)
   bb := bytebufferfromfile(path)
   if bb.read32BE() != magic {
-    log.Fatalf("flac file %s does not have correct magic number\n", path)
+    log.Printf("flac file %s does not have correct magic number\n", path)
+    return song
   }
-  song := make(TagMap)
   for {
     blocktype, lastone, size := nextmetablock(bb)
     if blocktype == commenttype {
