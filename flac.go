@@ -25,7 +25,8 @@ func FlacTagsFromFile(path string) TagMap {
     }
     bb.n = bb.n - 4 // un-read the magic
     id3size := mp3ParseID3(bb.b, song)
-    bb.skip(uint32(id3size))
+    log.Printf("ID3 block is %d bytes\n", id3size)
+    bb.skip(uint32(id3size + 4))  // the +4 is to skip the magic
   }
   for {
     blocktype, lastone, size := nextmetablock(bb)
