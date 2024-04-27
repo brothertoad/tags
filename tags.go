@@ -18,7 +18,7 @@ var keyTranslations = map[string]string {
   "disk" : DiscNumberKey,
   "tracknumber" : TrackNumberKey,
   "TRACKNUMBER" : TrackNumberKey,
-  "DISKNUMBER" : DiscNumberKey,
+  "DISCNUMBER" : DiscNumberKey,
   "TIT2" : TitleKey,
   "TPE1" : ArtistKey,
   "TALB" : AlbumKey,
@@ -69,17 +69,29 @@ func translateKeys(song TagMap) {
       log.Printf("Can't get track number for '%s'\n", song[RelativePathKey])
     }
   }
-  // Check for the disc number.  If it doesn't exist, see if it has the TPOS tag, which
-  // is disc number / disc total and get the disc number from that.  If that doesn't
-  // exist, assume disc 1.
-  if _, present := song[DiscNumberKey]; !present {
+  // Check for the disc number.  If it exists, clean it up.  If not, see if it has the
+  // TPOS tag, which is disc number / disc total and get the disc number from that.
+  // If that doesn't exist, assume disc 1.
+  if _, present := song[DiscNumberKey]; present {
+    song[DiscNumberKey] = cleanUpNumber(song[DiscNumberKey])
+  } else {
     if dndt, dndtPresent := song["TPOS"]; dndtPresent {
-      s := strings.Split(dndt, "/")
-      song[DiscNumberKey] = stripLeadingZero(s[0])
+      song[DiscNumberKey] = cleanUpNumber(dndt)
     } else {
       song[DiscNumberKey] = "1"
     }
   }
+}
+
+// Clean up track and disc numbers by removing a slash (and anything following the
+// slash) and also removing a leading zero if there is one.
+func cleanUpNumber(v string) string {
+  // If the string contains a slash, just get the part in front of the slash.
+  if strings.Index(v, "/") >= 0 {
+    s := strings.Split(v, "/")
+    v = s[0]
+  }
+  return stripLeadingZero(v)
 }
 
 func stripLeadingZero(s string) string {
