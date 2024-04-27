@@ -52,28 +52,22 @@ func translateKeys(song TagMap) {
       song[trans] = v
     }
   }
-  // If there is a track number, and it has a slash, change it to the TRCK tag.
+  // Check for the track number.  If it exists, clean it up.  If not, see if
+  // the TRCK tag exists, which is track number / track total and get the track number from that.
   if v, present := song[TrackNumberKey]; present {
-    if strings.Index(v, "/") >= 0 {
-      s := strings.Split(v, "/")
-      song[TrackNumberKey] = s[0]
-    }
-  }
-  // Check for the track number.  If it doesn't exist, see if it has the TRCK tag, which
-  // is track number / track total and get the track number from that.
-  if _, present := song[TrackNumberKey]; !present {
-    if tntt, tnttPresent := song["TRCK"]; tnttPresent {
-      s := strings.Split(tntt, "/")
-      song[TrackNumberKey] = stripLeadingZero(s[0])
+      song[TrackNumberKey] = cleanUpNumber(v)
     } else {
+      if tntt, tnttPresent := song["TRCK"]; tnttPresent {
+        song[TrackNumberKey] = cleanUpNumber(tntt)
+      } else {
       log.Printf("Can't get track number for '%s'\n", song[RelativePathKey])
     }
   }
   // Check for the disc number.  If it exists, clean it up.  If not, see if it has the
   // TPOS tag, which is disc number / disc total and get the disc number from that.
   // If that doesn't exist, assume disc 1.
-  if _, present := song[DiscNumberKey]; present {
-    song[DiscNumberKey] = cleanUpNumber(song[DiscNumberKey])
+  if v, present := song[DiscNumberKey]; present {
+    song[DiscNumberKey] = cleanUpNumber(v)
   } else {
     if dndt, dndtPresent := song["TPOS"]; dndtPresent {
       song[DiscNumberKey] = cleanUpNumber(dndt)
