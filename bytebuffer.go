@@ -2,6 +2,8 @@ package tags
 
 import (
   "encoding/binary"
+  "fmt"
+  "os"
 )
 
 type bytebuffer struct {
@@ -12,6 +14,25 @@ type bytebuffer struct {
 func bytebufferfromfile(path string) *bytebuffer {
   bb := new(bytebuffer)
   bb.b = readFile(path)
+  return bb
+}
+
+func bbFromFilePrefix(path string, size int) *bytebuffer {
+  bb := new(bytebuffer)
+  bb.b = make([]byte, size)
+  f, err := os.Open(path)
+  if err != nil {
+	  fmt.Printf("Unable to open %s for reading, error is %s\n", path, err.Error())
+	  os.Exit(1)
+  }
+  n, err := f.Read(bb.b)
+  if err != nil {
+	  fmt.Printf("Unable to read %s, error is %s\n", path, err.Error())
+	  os.Exit(1)
+  }
+  if n < size {
+	  fmt.Printf("File %s is %d bytes, wanted %d\n", path, n, size)
+  }
   return bb
 }
 
