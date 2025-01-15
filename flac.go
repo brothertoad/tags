@@ -15,8 +15,10 @@ const commenttype byte = 4
 
 func FlacTagsFromFile(path string) TagMap {
   song := make(TagMap)
-  bb := bytebufferfromfile(path)
+  bb := bbFromFilePrefix(path, 256 * 1024)
   bbMagic := bb.read32BE()
+  haveComments := false
+  haveDuration := false
   if bbMagic != magic {
     // If the buffer doesn't start with an ID3 block, nothing we can do.
     if (bbMagic & 0xffffff00) != id3Magic {
@@ -35,9 +37,17 @@ func FlacTagsFromFile(path string) TagMap {
       setMimeAndExtension("audio/flac", "flac", song)
       song[EncodedExtensionKey] = "mp3"
       song[IsEncodedKey] = "false"
+      haveComments = true
+      if haveComments && haveDuration {
+		  break
+	  }
     } else if blocktype == streaminfotype {
       sibb := bytebufferfromparent(bb, size)
       getFlacDuration(sibb, song)
+      haveDuration = true
+      if haveComments && haveDuration {
+		  break
+	  }
     } else {
       bb.skip(size)
     }
